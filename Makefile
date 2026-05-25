@@ -1,8 +1,7 @@
-SRC_FILES = main.py
+SRC_FILES = src/main.py
 
 install:
-	uv venv
-	uv pip install flake8 mypy
+	uv sync --python 3.11
 
 run:
 	uv run python3 main.py $(map)
