@@ -1,13 +1,13 @@
-SRC_FILES = src/main.py
+SRC_FILES = src/
 
 install:
 	uv sync --python 3.11
 
 run:
-	uv run python3 main.py $(map)
+	uv run python3 -m src $(args)
 
 debug:
-	uv run python3 -m pdb main.py $(map)
+	uv run python3 -m pdb src $(args)
 
 lint:
 	uv run flake8 $(SRC_FILES)
@@ -21,6 +21,8 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type d -name .mypy_cache -exec rm -rf {} +
 	find . -name "*.pyc" -delete
+	find . -name "*.pyo" -delete
+	rm -rf data/output/*.json
 
 fclean: clean
 	rm -rf .venv

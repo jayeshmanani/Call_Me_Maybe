@@ -13,3 +13,5 @@ build/
 venv/
 env/
 ENV/
+
+data/output/
