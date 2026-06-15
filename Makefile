@@ -1,21 +1,44 @@
 SRC_FILES = src/
 
-install:
-	uv sync --python 3.11
+GOINFRE               = /goinfre/jmanani
+VENV                  = $(GOINFRE)/.venv
+UV_CACHE_DIR          = $(GOINFRE)/.uv-cache
+TMPDIR                = $(GOINFRE)/.tmp
+HF_HOME               = $(GOINFRE)/.hf
+TRANSFORMERS_CACHE    = $(HF_HOME)/transformers
+HUGGINGFACE_HUB_CACHE = $(HF_HOME)/hub
 
-run:
-	uv run python3 -m src $(args)
+export UV_PROJECT_ENVIRONMENT := $(VENV)
 
-debug:
-	uv run python3 -m pdb src $(args)
+UV = UV_CACHE_DIR=$(UV_CACHE_DIR) TMPDIR=$(TMPDIR)
+
+init-cache:
+	@mkdir -p $(VENV) $(UV_CACHE_DIR) $(TMPDIR) $(HF_HOME) \
+		$(TRANSFORMERS_CACHE) $(HUGGINGFACE_HUB_CACHE)
+	@echo "✔ All directories ready under $(GOINFRE)"
+
+install: init-cache
+	$(UV) uv venv --python 3.11 $(VENV)
+	$(UV) uv sync --active
+
+run: init-cache
+	$(UV) uv run python -m src $(args)
+
+debug: init-cache
+	$(UV) uv run python -m pdb -m src $(args)
 
 lint:
-	uv run flake8 $(SRC_FILES)
-	uv run mypy $(SRC_FILES) --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	$(UV) uv run flake8 $(SRC_FILES)
+	$(UV) uv run mypy $(SRC_FILES) \
+		--warn-return-any \
+		--warn-unused-ignores \
+		--ignore-missing-imports \
+		--disallow-untyped-defs \
+		--check-untyped-defs
 
 lint-strict:
-	uv run flake8 $(SRC_FILES)
-	uv run mypy $(SRC_FILES) --strict
+	$(UV) uv run flake8 $(SRC_FILES)
+	$(UV) uv run mypy $(SRC_FILES) --strict
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
@@ -25,6 +48,16 @@ clean:
 	rm -rf data/output/*.json
 
 fclean: clean
-	rm -rf .venv
+	rm -rf $(VENV)
 
-.PHONY: install run debug lint lint-strict clean fclean
+env:
+	@echo "# Default uv goinfre environment" > .env.goinfre
+	@echo "export UV_CACHE_DIR=$(UV_CACHE_DIR)" >> .env.goinfre
+	@echo "export TMPDIR=$(TMPDIR)" >> .env.goinfre
+	@echo "export HF_HOME=$(HF_HOME)" >> .env.goinfre
+	@echo "export TRANSFORMERS_CACHE=$(TRANSFORMERS_CACHE)" >> .env.goinfre
+	@echo "export HUGGINGFACE_HUB_CACHE=$(HUGGINGFACE_HUB_CACHE)" >> .env.goinfre
+	@echo "export UV_PROJECT_ENVIRONMENT=$(VENV)" >> .env.goinfre
+	@echo "env file written, Now Run Command → source .env.goinfre"
+
+.PHONY: install run debug lint lint-strict clean fclean init-cache env

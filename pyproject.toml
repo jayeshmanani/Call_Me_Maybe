@@ -9,4 +9,7 @@ dependencies = [
     "mypy>=2.1.0",
     "numpy>=2.2.6",
     "pydantic>=2.13.4",
+    "torch",
+    "transformers",
+    "huggingface_hub",
 ]
