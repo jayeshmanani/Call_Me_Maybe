@@ -12,4 +12,5 @@ dependencies = [
     "torch",
     "transformers",
     "huggingface_hub",
+    "ipykernel"
 ]

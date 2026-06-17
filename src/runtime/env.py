@@ -8,7 +8,7 @@ class CachingConfig:
         self.hf_root = root / ".hf"
 
     @property
-    def env(self):
+    def env(self) -> dict[str, Path]:
         return {
             "UV_CACHE_DIR": self.root / ".uv-cache",
             "TMPDIR": self.root / ".tmp",
@@ -18,7 +18,7 @@ class CachingConfig:
         }
 
     @property
-    def dirs(self):
+    def dirs(self) -> set[Path]:
         return set(self.env.values())
 
 
