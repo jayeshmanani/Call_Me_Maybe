@@ -1,6 +1,7 @@
 SRC_FILES = src/
 
-GOINFRE               = /goinfre/jmanani
+USERNAME := $(shell whoami)
+GOINFRE               = /goinfre/$(USERNAME)
 VENV                  = $(GOINFRE)/.venv
 UV_CACHE_DIR          = $(GOINFRE)/.uv-cache
 TMPDIR                = $(GOINFRE)/.tmp
@@ -11,6 +12,16 @@ HUGGINGFACE_HUB_CACHE = $(HF_HOME)/hub
 export UV_PROJECT_ENVIRONMENT := $(VENV)
 
 UV = UV_CACHE_DIR=$(UV_CACHE_DIR) TMPDIR=$(TMPDIR)
+
+uname:
+	@echo "Username: $(USERNAME)"
+	@echo "Goinfre Path: $(GOINFRE)"
+	@echo "Virtual Environment: $(VENV)"
+	@echo "UV Cache Directory: $(UV_CACHE_DIR)"
+	@echo "Temporary Directory: $(TMPDIR)"
+	@echo "Hugging Face Home: $(HF_HOME)"
+	@echo "Transformers Cache: $(TRANSFORMERS_CACHE)"
+	@echo "Hugging Face Hub Cache: $(HUGGINGFACE_HUB_CACHE)"
 
 init-cache:
 	@mkdir -p $(VENV) $(UV_CACHE_DIR) $(TMPDIR) $(HF_HOME) \
