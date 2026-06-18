@@ -1,12 +1,12 @@
 import json
 from pathlib import Path
 import sys
-from typing import List, Dict
+from typing import List, Dict, Any
 
 
 def load_json_file(
     path: Path, label: str
-) -> List[Dict[str, Dict[str, object]]] | None:
+) -> List[Dict[str, Any]] | None:
     """Load a JSON file"""
     if not path.exists():
         print(f"ERROR: {label} file not found: {path}", file=sys.stderr)
