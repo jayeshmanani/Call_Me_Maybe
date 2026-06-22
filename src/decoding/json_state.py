@@ -16,19 +16,25 @@ class JsonState(Enum):
 class JsonStateMachine:
     def __init__(self) -> None:
         self.state: JsonState = JsonState.START
-        self.object_depth: int = 0
-        self.current_string: str = ""
-        self.is_escaping: bool = False
 
-    def process_string(self, text: str) -> None:
-        for char in text:
-            self.process_char(char)
+    def advance(self, char: str) -> None:
+        handler = self._TRANSITIONS.get(self.state)
+        if handler is None:
+            raise ValueError(f"No transition handler for state {self.state}")
+        self.state = handler(self, char)
 
-    def process_char(self, char: str) -> None:
-        if self.state == JsonState.START:
-            if char == '{':
-                self.state = JsonState.EXPECT_KEY_OPEN
-                self.object_depth += 1
-        elif self.state == JsonState.EXPECT_COLON:
-            if char == ':':
-                self.state = JsonState.EXPECT_VALUE_OPEN
+    def _from_start(self, char: str) -> JsonState:
+        if char == "{":
+            return JsonState.EXPECT_KEY_OPEN
+        raise ValueError(f"START: expected '{{', got {char!r}")
+
+    def _from_done(self, char: str) -> JsonState:
+        raise ValueError("DONE: no more characters expected")
+
+    _TRANSITIONS: dict = {}
+
+
+JsonStateMachine._TRANSITIONS = {
+    JsonState.START: JsonStateMachine._from_start,
+    JsonState.DONE: JsonStateMachine._from_done,
+}
