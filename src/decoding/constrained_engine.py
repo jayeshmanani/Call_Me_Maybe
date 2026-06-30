@@ -39,7 +39,7 @@ def constrained_generate(
             break
         logits = model.get_logits_from_input_ids(current_ids)
         allowed = legal_token_ids(
-            state_machine.state,
+            state_machine,
             clf,
             chars_in_current_string=chars_in_current_string,
             max_string_chars=max_string_chars,
@@ -56,10 +56,14 @@ def constrained_generate(
         current_ids.append(next_id)
 
         surface = clf.surface_of(next_id)
+        print(surface, end="", flush=True)
         for char in surface:
             state_machine.advance(char)
-            
-            if state_machine.state in (JsonState.IN_KEY_STRING, JsonState.IN_STRING_VALUE):
+            in_str = (
+                JsonState.IN_KEY_STRING,
+                JsonState.IN_STRING_VALUE,
+            )
+            if state_machine.state in in_str:
                 chars_in_current_string += 1
             else:
                 chars_in_current_string = 0
@@ -69,4 +73,5 @@ def constrained_generate(
             f"Hit max_tokens={max_tokens} without completing the JSON object. "
             "Check the state machine for a stuck transition."
         )
+    print()
     return generated_ids
