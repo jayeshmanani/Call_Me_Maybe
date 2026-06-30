@@ -31,6 +31,7 @@ def constrained_generate(
     current_ids = list(prompt_ids)
     chars_in_current_string = 0
     generated_ids: list[int] = []
+    reached_done = False
 
     for _ in range(max_tokens):
         if state_machine.state == JsonState.DONE:
@@ -53,6 +54,16 @@ def constrained_generate(
         generated_ids.append(next_id)
 
         current_ids.append(next_id)
+
+        surface = clf.surface_of(next_id)
+        for char in surface:
+            state_machine.advance(char)
+            
+            if state_machine.state in (JsonState.IN_KEY_STRING, JsonState.IN_STRING_VALUE):
+                chars_in_current_string += 1
+            else:
+                chars_in_current_string = 0
+
     if not reached_done:
         raise RuntimeError(
             f"Hit max_tokens={max_tokens} without completing the JSON object. "
