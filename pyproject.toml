@@ -12,5 +12,13 @@ dependencies = [
     "torch",
     "transformers",
     "huggingface_hub",
-    "ipykernel"
+    "ipykernel",
+    "llm-sdk"
 ]
+
+[tool.uv]
+sources = { "llm-sdk" = { path = "./llm_sdk" } }
+
+[tool.mypy]
+mypy_path = "llm_sdk"
+follow_imports = "skip"

@@ -1,18 +1,10 @@
-import sys
 import json
 from argparse import Namespace
-from pathlib import Path
 from pydantic import ValidationError
 from typing import List
 
-# Ensure llm_sdk directory is in sys.path
-root_dir = Path(__file__).parent.parent
-llm_sdk_dir = root_dir / "llm_sdk"
-if str(llm_sdk_dir) not in sys.path:
-    sys.path.append(str(llm_sdk_dir))
-
-from .runtime.env import init_caching_dirs
 from llm_sdk import Small_LLM_Model
+from .runtime.env import init_caching_dirs
 from .runtime.arg_parser import CallMeMaybeCLI
 from .runtime.json_loader import load_json_file
 from .schema.function_def import FunctionDef
