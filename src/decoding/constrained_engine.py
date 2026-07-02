@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from src.schema.function_def import FunctionDef
 from src.vocab import TokenClassifier
 from .json_state import JsonState, JsonStateMachine
 from .mask import legal_token_ids, mask_logits
@@ -26,8 +27,9 @@ def constrained_generate(
     clf: TokenClassifier,
     max_tokens: int = 200,
     max_string_chars: int = 60,
+    functions: list[FunctionDef] | None = None,
 ) -> list[int]:
-    state_machine = JsonStateMachine()
+    state_machine = JsonStateMachine(functions)
     current_ids = list(prompt_ids)
     chars_in_current_string = 0
     generated_ids: list[int] = []

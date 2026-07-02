@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from src.schema.function_def import FunctionDef
 
 
 class JsonState(Enum):
@@ -21,15 +22,195 @@ class ContainerType(Enum):
 
 
 class JsonStateMachine:
-    def __init__(self) -> None:
+    def __init__(self, functions: list[FunctionDef] | None = None) -> None:
         self.state: JsonState = JsonState.START
         self.stack: list[tuple[ContainerType, JsonState]] = []
+        self.functions: list[FunctionDef] = functions or []
+
+        self.current_key: str = ""
+        self.current_key_accum: str = ""
+        self.current_function_name: str | None = None
+        self.current_value_accum: str = ""
+        self.parsed_params: set[str] = set()
+        self.path: list[str] = []
+
+    @property
+    def inside_parameters_object(self) -> bool:
+        return "parameters" in self.path
+
+    @property
+    def current_param_name(self) -> str | None:
+        if "parameters" not in self.path:
+            return None
+        idx = self.path.index("parameters")
+        if len(self.path) > idx + 1:
+            return self.path[idx + 1]
+        return self.current_key
+
+    @property
+    def allowed_parameter_keys(self) -> set[str]:
+        if not self.functions:
+            return set()
+        if self.current_function_name:
+            for func in self.functions:
+                if func.name == self.current_function_name:
+                    return set(func.parameters.keys()) - self.parsed_params
+            return set()
+        union_keys: set[str] = set()
+        for func in self.functions:
+            union_keys.update(func.parameters.keys())
+        return union_keys - self.parsed_params
+
+    @property
+    def active_parameter_type(self) -> str | None:
+        if not self.current_param_name or not self.current_function_name:
+            return None
+        for func in self.functions:
+            if func.name == self.current_function_name:
+                if self.current_param_name in func.parameters:
+                    return func.parameters[self.current_param_name].type
+        return None
+
+    def clone(self) -> "JsonStateMachine":
+        new_sm = JsonStateMachine(self.functions)
+        new_sm.state = self.state
+        new_sm.stack = list(self.stack)
+        new_sm.current_key = self.current_key
+        new_sm.current_key_accum = self.current_key_accum
+        new_sm.current_function_name = self.current_function_name
+        new_sm.current_value_accum = self.current_value_accum
+        new_sm.parsed_params = set(self.parsed_params)
+        new_sm.path = list(self.path)
+        return new_sm
 
     def advance(self, char: str) -> None:
         handler = self._TRANSITIONS.get(self.state)
         if handler is None:
             raise ValueError(f"No transition handler for state {self.state}")
-        self.state = handler(self, char)
+
+        prev_stack_len = len(self.stack)
+        next_state = handler(self, char)
+        new_stack_len = len(self.stack)
+
+        if len(self.path) == 1 and self.path[0] == "":
+            if next_state == JsonState.IN_KEY_STRING:
+                accum = (
+                    self.current_key_accum + char
+                    if char != '"'
+                    else self.current_key_accum
+                )
+                if not (
+                    "name".startswith(accum)
+                    or "parameters".startswith(accum)
+                ):
+                    raise ValueError(
+                        f"Invalid first-level key prefix: {accum}"
+                    )
+            elif (
+                self.state == JsonState.IN_KEY_STRING
+                and next_state == JsonState.EXPECT_COLON
+            ):
+                key = self.current_key_accum
+                if key not in ("name", "parameters"):
+                    raise ValueError(f"Invalid first-level key: {key}")
+
+        if self.current_key == "name" and len(self.path) == 1:
+            if next_state == JsonState.IN_STRING_VALUE:
+                accum = (
+                    self.current_value_accum + char
+                    if char != '"'
+                    else self.current_value_accum
+                )
+                if self.functions:
+                    match_found = any(
+                        func.name.startswith(accum) for func in self.functions
+                    )
+                    if not match_found:
+                        raise ValueError(
+                            f"Invalid function name prefix: {accum}"
+                        )
+            elif (
+                self.state == JsonState.IN_STRING_VALUE
+                and next_state not in (
+                    JsonState.IN_STRING_VALUE,
+                    JsonState.IN_NUMBER_VALUE,
+                )
+            ):
+                val = self.current_value_accum
+                if self.functions:
+                    match_found = any(
+                        func.name == val for func in self.functions
+                    )
+                    if not match_found:
+                        raise ValueError(f"Invalid function name: {val}")
+
+        if self.inside_parameters_object and self.path[-1] == "parameters":
+            allowed_keys = self.allowed_parameter_keys
+            if allowed_keys:
+                if next_state == JsonState.IN_KEY_STRING:
+                    accum = (
+                        self.current_key_accum + char
+                        if char != '"'
+                        else self.current_key_accum
+                    )
+                    match_found = any(
+                        k.startswith(accum) for k in allowed_keys
+                    )
+                    if not match_found:
+                        raise ValueError(f"Invalid param key prefix: {accum}")
+                elif (
+                    self.state == JsonState.IN_KEY_STRING
+                    and next_state == JsonState.EXPECT_COLON
+                ):
+                    key = self.current_key_accum
+                    if key not in allowed_keys:
+                        raise ValueError(f"Invalid param key: {key}")
+
+        if self.inside_parameters_object and self.current_param_name:
+            param_type = self.active_parameter_type
+            if param_type == "number":
+                if next_state == JsonState.IN_STRING_VALUE:
+                    raise ValueError("Expected number, got string")
+            elif param_type == "string":
+                if next_state == JsonState.IN_NUMBER_VALUE:
+                    raise ValueError("Expected string, got number")
+                if next_state in (
+                    JsonState.EXPECT_KEY_OPEN,
+                    JsonState.EXPECT_ELEMENT_OPEN,
+                ):
+                    raise ValueError("Expected string, got container")
+
+        if new_stack_len > prev_stack_len:
+            self.path.append(self.current_key)
+        elif new_stack_len < prev_stack_len:
+            if self.path:
+                self.path.pop()
+
+        if next_state == JsonState.IN_KEY_STRING:
+            if char != '"':
+                self.current_key_accum += char
+
+        elif (
+            self.state == JsonState.IN_KEY_STRING
+            and next_state == JsonState.EXPECT_COLON
+        ):
+            self.current_key = self.current_key_accum
+            self.current_key_accum = ""
+            if self.path and self.path[-1] == "parameters":
+                self.parsed_params.add(self.current_key)
+
+        is_val_state = (JsonState.IN_STRING_VALUE, JsonState.IN_NUMBER_VALUE)
+        if next_state in is_val_state:
+            if char != '"':
+                self.current_value_accum += char
+
+        if self.state in is_val_state and next_state not in is_val_state:
+            finished_value = self.current_value_accum
+            self.current_value_accum = ""
+            if self.current_key == "name" and len(self.path) == 1:
+                self.current_function_name = finished_value
+
+        self.state = next_state
 
     def _from_start(self, char: str) -> JsonState:
         if char == "{":
