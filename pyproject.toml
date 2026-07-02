@@ -20,5 +20,11 @@ dependencies = [
 sources = { "llm-sdk" = { path = "./llm_sdk" } }
 
 [tool.mypy]
-mypy_path = "llm_sdk"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "llm_sdk",
+    "llm_sdk.*"
+]
 follow_imports = "skip"
