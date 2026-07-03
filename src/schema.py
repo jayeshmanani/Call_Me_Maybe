@@ -25,9 +25,9 @@ class ParameterDef(BaseModel):
 
 class FunctionDef(BaseModel):
     """Pydantic model for function definitions."""
-    name: str = Field(min_length=1)
-    description: str = Field(min_length=1)
-    parameters: Dict[str, ParameterDef] = Field(default_factory=dict)
+    name: str = Field(min_length=5)
+    description: str = Field(min_length=5)
+    parameters: Dict[str, ParameterDef] = Field(min_length=1)
     returns: Dict[str, Any] | None = None
 
     @field_validator("name", "description")
