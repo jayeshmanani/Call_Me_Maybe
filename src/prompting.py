@@ -2,21 +2,26 @@ from typing import Any, Dict, List
 
 
 def format_prompt(user_query: str, functions: List[Dict[str, Any]]) -> str:
-    """Format the user prompt with semantic function signatures."""
-    prompt = (
-        "Select the correct function and parameters. "
-        "Extract parameter values exactly as described in the query.\n\n"
-        "Available functions:\n"
-    )
+    """Format user query alongside candidate function signatures."""
+    lines = [
+        "Select the correct function and parameters.",
+        "Extract parameter values exactly as described in the query.\n",
+        "Available functions:",
+    ]
     for fn in functions:
-        prompt += f"- {fn.get('name', '')}: {fn.get('description', '')}\n"
-        prompt += "  Arguments:\n"
+        name = fn.get("name", "")
+        desc = fn.get("description", "")
+        lines.append(f"- {name}: {desc}")
         params = fn.get("parameters", {})
         if not params:
-            prompt += "    None\n"
-        for param_name, param_data in params.items():
-            prompt += f"    - {param_name} ({param_data.get('type', '')})\n"
+            lines.append("  Arguments:\n    None")
+        else:
+            lines.append("  Arguments:")
+            for p_name, p_data in params.items():
+                p_type = p_data.get("type", "") if isinstance(p_data, dict) \
+                    else ""
+                lines.append(f"    - {p_name} ({p_type})")
 
-    prompt += f"\nQuery: \"{user_query}\"\n"
-    prompt += "Output JSON:\n"
-    return prompt
+    lines.append(f'\nQuery: "{user_query}"')
+    lines.append("Output JSON:")
+    return "\n".join(lines)
