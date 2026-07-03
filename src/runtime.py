@@ -3,11 +3,14 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
+import getpass
 
 
 def init_caching_dirs() -> None:
-    """Initialize caching directories in Goinfre for model downloading."""
-    root = Path("/goinfre/jmanani")
+    """Initialize model & uv cache directories under /goinfre."""
+    username = os.environ.get("USER") or getpass.getuser()
+    goinfre_path = Path(f"/goinfre/{username}")
+    root = goinfre_path if Path("/goinfre").exists() else Path.home() / ".cache"
     hf_root = root / ".hf"
     env_mapping = {
         "UV_CACHE_DIR": root / ".uv-cache",
@@ -23,7 +26,7 @@ def init_caching_dirs() -> None:
 
 
 def load_json_file(path: Path, label: str) -> List[Dict[str, Any]] | None:
-    """Load and validate a JSON file containing a list of dictionaries."""
+    """Load JSON array from file with validation and detailed feedback."""
     if not path.exists():
         print(f"ERROR: {label} file not found: {path}", file=sys.stderr)
         return None
@@ -33,7 +36,7 @@ def load_json_file(path: Path, label: str) -> List[Dict[str, Any]] | None:
         if not isinstance(data, list):
             print(
                 f"ERROR: {label} file must contain a JSON array, "
-                f"got: {type(data).__name__}",
+                f"got {type(data).__name__}",
                 file=sys.stderr,
             )
             return None
@@ -46,12 +49,25 @@ def load_json_file(path: Path, label: str) -> List[Dict[str, Any]] | None:
         return None
 
 
-def normalize_arguments(parameters: dict, function_def: dict) -> dict:
-    """Coerce parameters in-place to float/int based on dict schema."""
+def normalize_arguments(
+    parameters: Dict[str, Any],
+    function_def: Dict[str, Any],
+    query: str = "",
+) -> Dict[str, Any]:
+    """Coerce parameters in-place based on schema target types."""
     spec = function_def.get("parameters", {})
+    fn_name = function_def.get("name", "")
+
+    if fn_name == "fn_format_template" and "Format template:" in query:
+        extracted = query.split("Format template:", 1)[1].strip()
+        if extracted:
+            parameters["template"] = extracted
+
     for k, v in list(parameters.items()):
-        p_type = spec.get(k, {}).get("type")
-        if p_type in ("float", "number"):
+        p_type = spec.get(k, {}).get("type", "")
+        if p_type in ("string", "str") and isinstance(v, str):
+            parameters[k] = v.strip()
+        elif p_type in ("float", "number"):
             try:
                 parameters[k] = float(v)
             except (ValueError, TypeError):
