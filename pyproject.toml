@@ -8,6 +8,7 @@ dependencies = [
     "torch",
     "transformers",
     "huggingface_hub",
+    "pydantic>=2.13.4",
     "llm-sdk"
 ]
 
