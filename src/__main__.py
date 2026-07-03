@@ -63,6 +63,7 @@ def run_app(args: argparse.Namespace) -> int:
         print("Initializing model...")
         model = Small_LLM_Model(model_name=str(args.model_name))
         vocab_path = model.get_path_to_vocab_file()
+        print(f"Vocab path: {vocab_path}")
         clf = TokenClassifier.from_vocab_path(vocab_path)
 
         results = []
