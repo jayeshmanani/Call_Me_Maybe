@@ -1,16 +1,17 @@
+import getpass
 import json
 import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
-import getpass
 
 
 def init_caching_dirs() -> None:
     """Initialize model & uv cache directories under /goinfre."""
     username = os.environ.get("USER") or getpass.getuser()
     goinfre_path = Path(f"/goinfre/{username}")
-    root = goinfre_path if Path("/goinfre").exists() else Path.home() / ".cache"
+    is_goinfre = Path("/goinfre").exists()
+    root = goinfre_path if is_goinfre else Path.home() / ".cache"
     hf_root = root / ".hf"
     env_mapping = {
         "UV_CACHE_DIR": root / ".uv-cache",
@@ -19,10 +20,9 @@ def init_caching_dirs() -> None:
         "TRANSFORMERS_CACHE": hf_root / "transformers",
         "HUGGINGFACE_HUB_CACHE": hf_root / "hub",
     }
-    for k, v in env_mapping.items():
-        os.environ.setdefault(k, str(v))
-    for directory in env_mapping.values():
-        directory.mkdir(parents=True, exist_ok=True)
+    for var_name, directory_path in env_mapping.items():
+        directory_path.mkdir(parents=True, exist_ok=True)
+        os.environ.setdefault(var_name, str(directory_path))
 
 
 def load_json_file(path: Path, label: str) -> List[Dict[str, Any]] | None:
