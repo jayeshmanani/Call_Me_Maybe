@@ -8,10 +8,7 @@ class PromptFormatter:
     @staticmethod
     def format_prompt(user_query: str, functions: List[FunctionDef]) -> str:
         prompt = (
-            "You are a helpful AI assistant that translates natural language "
-            "into structured function calls. You must reply ONLY with a valid "
-            "JSON object containing 'name' (the function name) and "
-            "'parameters' (the function arguments).\n\n"
+            "Select the correct function and parameters.\n\n"
             "Available functions:\n"
         )
 
@@ -24,7 +21,7 @@ class PromptFormatter:
                 prompt += f"    - {param_name} ({param_data.type})\n"
 
         prompt += (
-            f"\nUser query: \"{user_query}\"\n"
+            f"\nQuery: \"{user_query}\"\n"
             "Output JSON:\n"
         )
 

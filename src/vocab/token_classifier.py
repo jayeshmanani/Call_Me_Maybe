@@ -35,12 +35,3 @@ class TokenClassifier:
     def surface_of(self, token_id: int) -> str:
         raw = self._id_to_token.get(token_id, "")
         return token_surface(raw)
-
-    def summary(self) -> str:
-        lines = [
-            f"Vocab size         : {len(self._id_to_token)}",
-            f"String tokens      : {len(self.all_string_tokens)}",
-            f"Quote tokens       : {len(self.tokens_containing_quote)}",
-            f"Number char tokens : {len(self.number_char_tokens)}",
-        ]
-        return "\n".join(lines)
