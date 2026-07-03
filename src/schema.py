@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class ParameterDef(BaseModel):
-    """Pydantic model for parameter definitions."""
+    """Definition of a function parameter schema."""
     type: str
     description: str | None = None
 
@@ -17,17 +17,16 @@ class ParameterDef(BaseModel):
         val = v.strip().lower()
         if val not in valid_types:
             raise ValueError(
-                f"Invalid parameter type: {v}. "
-                f"Expected one of {valid_types}"
+                f"Invalid parameter type: {v}. Expected one of {valid_types}"
             )
         return val
 
 
 class FunctionDef(BaseModel):
-    """Pydantic model for function definitions."""
-    name: str = Field(min_length=5)
-    description: str = Field(min_length=5)
-    parameters: Dict[str, ParameterDef] = Field(min_length=1)
+    """Definition of an executable tool function."""
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    parameters: Dict[str, ParameterDef] = Field(default_factory=dict)
     returns: Dict[str, Any] | None = None
 
     @field_validator("name", "description")
@@ -39,7 +38,7 @@ class FunctionDef(BaseModel):
 
 
 class PromptTest(BaseModel):
-    """Pydantic model for input prompt validation."""
+    """Input prompt test case."""
     prompt: str = Field(min_length=1)
 
     @field_validator("prompt")
@@ -48,3 +47,10 @@ class PromptTest(BaseModel):
         if not v.strip():
             raise ValueError("Prompt cannot be empty or whitespace.")
         return v.strip()
+
+
+class FunctionCallResult(BaseModel):
+    """Structured output result for a processed prompt."""
+    prompt: str
+    name: str
+    parameters: Dict[str, Any]
