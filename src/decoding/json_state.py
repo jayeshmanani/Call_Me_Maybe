@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from typing import Dict, Any
 from src.schema.function_def import FunctionDef
 
 
@@ -356,7 +357,7 @@ class JsonStateMachine:
             return JsonState.DONE
         raise ValueError("DONE: no more characters expected")
 
-    _TRANSITIONS: dict = {}
+    _TRANSITIONS: Dict[JsonState, Any] = {}
 
 
 JsonStateMachine._TRANSITIONS = {

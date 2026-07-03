@@ -61,26 +61,27 @@ def run_app(args: Namespace) -> int:
         clf = TokenClassifier.from_vocab_path(vocab_path)
 
         results = []
-        for item in prompts[:1]:
+        for item in prompts:
             query = item.get("prompt", "")
             if not query:
                 continue
 
-            formatted_prompt = PromptFormatter.format_prompt(query, functions)
-            prompt_tensor = model.encode(formatted_prompt)
-            prompt_ids = prompt_tensor[0].tolist()
-
-            print(f"Generating function call for query: {query!r}")
-            generated_ids = constrained_generate(
-                model=model,
-                prompt_ids=prompt_ids,
-                clf=clf
-            )
-
-            generated_text = model.decode(generated_ids)
-            # print(f"Generated text: {generated_text}")
-
             try:
+                formatted_prompt = PromptFormatter.format_prompt(
+                    query, functions
+                )
+                prompt_tensor = model.encode(formatted_prompt)
+                prompt_ids = prompt_tensor[0].tolist()
+
+                print(f"Generating function call for query: {query!r}")
+                generated_ids = constrained_generate(
+                    model=model,
+                    prompt_ids=prompt_ids,
+                    clf=clf,
+                    functions=functions,
+                )
+
+                generated_text = model.decode(generated_ids)
                 parsed_json = json.loads(generated_text)
                 name = parsed_json.get("name", "")
                 parameters = parsed_json.get("parameters", {})
@@ -91,7 +92,10 @@ def run_app(args: Namespace) -> int:
                 if fn_def:
                     for param_name, param_val in list(parameters.items()):
                         param_def = fn_def.parameters.get(param_name)
-                        if param_def and param_def.type in ("float", "number"):
+                        if (
+                            param_def
+                            and param_def.type in ("float", "number")
+                        ):
                             try:
                                 parameters[param_name] = float(param_val)
                             except (ValueError, TypeError):
@@ -100,14 +104,14 @@ def run_app(args: Namespace) -> int:
                 results.append({
                     "prompt": query,
                     "name": name,
-                    "parameters": parameters
+                    "parameters": parameters,
                 })
             except Exception as e:
-                print(f"Error parsing generated JSON: {e}")
+                print(f"Error processing prompt {query!r}: {e}")
                 results.append({
                     "prompt": query,
                     "name": "",
-                    "parameters": {}
+                    "parameters": {},
                 })
 
         args.output.parent.mkdir(parents=True, exist_ok=True)

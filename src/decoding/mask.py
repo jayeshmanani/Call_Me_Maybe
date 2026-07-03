@@ -1,8 +1,21 @@
 import math
-from typing import Set
+from typing import Set, Iterable
 
 from src.vocab import TokenClassifier
 from .json_state import JsonState, JsonStateMachine
+
+
+def allowed_next_chars_for_prefix(
+    prefix: str, allowed_strings: Iterable[str]
+) -> Set[str]:
+    next_chars: Set[str] = set()
+    for s in allowed_strings:
+        if s.startswith(prefix):
+            if len(s) > len(prefix):
+                next_chars.add(s[len(prefix)])
+            elif len(s) == len(prefix):
+                next_chars.add('"')
+    return next_chars
 
 
 def legal_token_ids(
@@ -14,12 +27,52 @@ def legal_token_ids(
     state = state_machine.state
     allowed: Set[int] = set()
 
+    is_constrained_string = False
+    allowed_next_chars: Set[str] = set()
+
+    if state == JsonState.IN_KEY_STRING:
+        if len(state_machine.path) == 1 and state_machine.path[0] == "":
+            is_constrained_string = True
+            allowed_next_chars = allowed_next_chars_for_prefix(
+                state_machine.current_key_accum, ("name", "parameters")
+            )
+        elif (
+            state_machine.inside_parameters_object
+            and state_machine.path[-1] == "parameters"
+        ):
+            is_constrained_string = True
+            allowed_next_chars = allowed_next_chars_for_prefix(
+                state_machine.current_key_accum,
+                state_machine.allowed_parameter_keys,
+            )
+    elif state == JsonState.IN_STRING_VALUE:
+        if (
+            state_machine.current_key == "name"
+            and len(state_machine.path) == 1
+        ):
+            is_constrained_string = True
+            allowed_next_chars = allowed_next_chars_for_prefix(
+                state_machine.current_value_accum,
+                (func.name for func in state_machine.functions),
+            )
+
     in_string = state in (JsonState.IN_KEY_STRING, JsonState.IN_STRING_VALUE)
-    if in_string and chars_in_current_string < max_string_chars:
+
+    if (
+        in_string
+        and not is_constrained_string
+        and chars_in_current_string < max_string_chars
+    ):
         allowed.update(clf.all_string_tokens)
 
-    valid_first_chars_non_ws = set()
-    if not in_string:
+    candidates: list[int] = []
+    if in_string:
+        if is_constrained_string:
+            for char in allowed_next_chars:
+                candidates.extend(clf.tokens_by_first_non_ws.get(char, []))
+        candidates.extend(clf.tokens_containing_quote)
+    else:
+        valid_first_chars_non_ws = set()
         if state == JsonState.START:
             valid_first_chars_non_ws.add("{")
             valid_first_chars_non_ws.add("[")
@@ -32,12 +85,18 @@ def legal_token_ids(
             JsonState.EXPECT_VALUE_OPEN,
             JsonState.EXPECT_ELEMENT_OPEN,
         ):
-            valid_first_chars_non_ws.add('"')
-            valid_first_chars_non_ws.update("0123456789.-")
-            valid_first_chars_non_ws.add("{")
-            valid_first_chars_non_ws.add("[")
-            if state == JsonState.EXPECT_ELEMENT_OPEN:
-                valid_first_chars_non_ws.add("]")
+            param_type = state_machine.active_parameter_type
+            if param_type == "number":
+                valid_first_chars_non_ws.update("0123456789.-")
+            elif param_type == "string":
+                valid_first_chars_non_ws.add('"')
+            else:
+                valid_first_chars_non_ws.add('"')
+                valid_first_chars_non_ws.update("0123456789.-")
+                valid_first_chars_non_ws.add("{")
+                valid_first_chars_non_ws.add("[")
+                if state == JsonState.EXPECT_ELEMENT_OPEN:
+                    valid_first_chars_non_ws.add("]")
         elif state == JsonState.AFTER_VALUE:
             valid_first_chars_non_ws.add(",")
             valid_first_chars_non_ws.add("}")
@@ -49,25 +108,20 @@ def legal_token_ids(
             valid_first_chars_non_ws.add(",")
             valid_first_chars_non_ws.add("}")
             valid_first_chars_non_ws.add("]")
-        elif state == JsonState.DONE:
-            pass
 
-    if in_string:
-        candidates = clf.tokens_containing_quote
-    else:
-        candidates = list(clf.whitespace_tokens)
+        candidates.extend(clf.whitespace_tokens)
         for char in valid_first_chars_non_ws:
             candidates.extend(clf.tokens_by_first_non_ws.get(char, []))
 
-    temp_sm = JsonStateMachine()
+    candidates = list(set(candidates))
+
     in_str_states = (JsonState.IN_KEY_STRING, JsonState.IN_STRING_VALUE)
     for token_id in candidates:
         surface = clf.surface_of(token_id)
         if not surface:
             continue
 
-        temp_sm.state = state
-        temp_sm.stack = list(state_machine.stack)
+        temp_sm = state_machine.clone()
         current_chars = chars_in_current_string
         valid = True
 
