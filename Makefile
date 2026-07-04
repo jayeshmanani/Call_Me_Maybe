@@ -56,7 +56,7 @@ clean:
 	find . -type d -name .mypy_cache -exec rm -rf {} +
 	find . -name "*.pyc" -delete
 	find . -name "*.pyo" -delete
-	rm -rf data/output/*.json
+	rm -rf data/output
 
 fclean: clean
 	rm -rf $(VENV)
