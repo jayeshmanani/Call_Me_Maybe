@@ -130,17 +130,17 @@ def generate_value(
             else encoded_quote[0]
         )
         chars_gen = 0
+        first_step_allowed = string_tokens
+        max_step_allowed = {quote_token} | clf.tokens_containing_quote
+        normal_step_allowed = string_tokens | max_step_allowed
         for _ in range(max_string_chars):
             logits = model.get_logits_from_input_ids(current_ids)
             if chars_gen == 0:
-                step_allowed = string_tokens
+                step_allowed = first_step_allowed
             elif chars_gen >= max_string_chars:
-                step_allowed = {quote_token} | clf.tokens_containing_quote
+                step_allowed = max_step_allowed
             else:
-                step_allowed = (
-                    string_tokens | clf.tokens_containing_quote
-                    | {quote_token}
-                )
+                step_allowed = normal_step_allowed
 
             masked = get_masked_vals(step_allowed, logits)
             next_id = max(range(len(masked)), key=masked.__getitem__)
