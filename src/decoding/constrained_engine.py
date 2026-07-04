@@ -29,6 +29,16 @@ def force_feed(
     print(literal_text, end="", flush=True)
 
 
+def get_masked_vals(
+    allowed: set[int],
+    logits: List[float],
+) -> List[float]:
+    return [
+        v if i in allowed else -math.inf
+        for i, v in enumerate(logits)
+    ]
+
+
 def generate_name(
     model: LogitSource,
     current_ids: List[int],
@@ -59,11 +69,7 @@ def generate_name(
         }
         if not allowed:
             raise RuntimeError(f"No allowed tokens for prefix {name_prefix!r}")
-
-        masked = [
-            v if i in allowed else -math.inf
-            for i, v in enumerate(logits)
-        ]
+        masked = get_masked_vals(allowed, logits)
         next_id = max(range(len(masked)), key=masked.__getitem__)
         current_ids.append(next_id)
         generated_ids.append(next_id)
@@ -104,10 +110,7 @@ def generate_value(
                 if not digit_seen
                 else set(range(len(logits)))
             )
-            masked = [
-                v if i in allowed else -math.inf
-                for i, v in enumerate(logits)
-            ]
+            masked = get_masked_vals(allowed, logits)
             next_id = max(range(len(masked)), key=masked.__getitem__)
             if next_id not in clf.number_char_tokens:
                 break
@@ -139,10 +142,7 @@ def generate_value(
                     | {quote_token}
                 )
 
-            masked = [
-                v if i in step_allowed else -math.inf
-                for i, v in enumerate(logits)
-            ]
+            masked = get_masked_vals(step_allowed, logits)
             next_id = max(range(len(masked)), key=masked.__getitem__)
             surface = clf.surface_of(next_id)
 
