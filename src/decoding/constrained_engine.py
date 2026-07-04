@@ -5,10 +5,14 @@ from src.vocab import TokenClassifier
 
 
 class LogitSource(Protocol):
+    """Protocol interface defining required model methods for decoding."""
+
     def get_logits_from_input_ids(self, input_ids: List[int]) -> List[float]:
+        """Return vocabulary logits for given input token sequence."""
         ...
 
     def encode(self, text: str) -> Any:
+        """Encode raw text into token ID representations."""
         ...
 
 
@@ -18,6 +22,7 @@ def force_feed(
     generated_ids: List[int],
     literal_text: str,
 ) -> None:
+    """Encode and append literal text to token sequence history."""
     encoded = model.encode(literal_text)
     first_item = encoded[0]
     token_ids = (
@@ -33,6 +38,7 @@ def get_masked_vals(
     allowed: set[int],
     logits: List[float],
 ) -> List[float]:
+    """Mask logits setting disallowed token indices to negative infinity."""
     return [
         v if i in allowed else -math.inf
         for i, v in enumerate(logits)
@@ -46,6 +52,7 @@ def generate_name(
     clf: TokenClassifier,
     functions: List[Dict[str, Any]],
 ) -> str:
+    """Constrain decoding to generate a valid target function name."""
     candidate_names = [fn.get("name", "") for fn in functions]
     name_prefix = ""
 
